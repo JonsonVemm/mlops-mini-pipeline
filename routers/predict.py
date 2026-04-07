@@ -5,12 +5,10 @@ import numpy as np
 
 router = APIRouter()
 
-# O seu repositório real
 REPO_ID = "YgorReis/fraud-detector-v1"
 _model = None
 
 
-# Lazy loading: Só carrega o modelo quando a primeira requisição bater
 def get_model():
     global _model
     if _model is None:
@@ -21,7 +19,6 @@ def get_model():
     return _model
 
 
-# Schema Pydantic - A "catraca" da sua API. Só entra dado com o tipo certo.
 class PredictInput(BaseModel):
     valor_transacao: float = Field(gt=0, description="Valor da transação em reais")
     hora_transacao: int = Field(ge=0, le=23, description="Hora do dia (0-23)")
@@ -48,7 +45,6 @@ class PredictOutput(BaseModel):
 async def predict(input: PredictInput):
     model = get_model()
 
-    # ORDEM CRÍTICA: Tem que bater com o treino
     features = np.array(
         [
             [
@@ -63,7 +59,6 @@ async def predict(input: PredictInput):
 
     # Faz a predição
     prediction = int(model.predict(features)[0])
-    # Pega a probabilidade da classe 1 (Fraude)
     probability = float(model.predict_proba(features)[0][1])
     label = "Fraude" if prediction == 1 else "Legítima"
 
@@ -79,7 +74,6 @@ async def predict(input: PredictInput):
 async def health():
     try:
         model = get_model()
-        # Manda uma transação "fantasma" de 5 zeros só pra ver se o modelo não quebra
         test_input = np.zeros((1, 5))
         model.predict(test_input)
         model_ok = True
@@ -97,8 +91,5 @@ async def health():
         "detail": detail,
     }
 
-    # Respondendo à pergunta do caderno: Por que retornar erro 503 e não 200?
-    # Se você retornar 200 com a API quebrada, os sistemas de monitoramento da
-    # empresa não vão apitar e vão continuar jogando tráfego no buraco.
     status_code = 200 if model_ok else 503
     return JSONResponse(content=body, status_code=status_code)
