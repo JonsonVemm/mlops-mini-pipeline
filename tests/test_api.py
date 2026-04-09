@@ -29,3 +29,17 @@ def test_rota_predict_com_dados_faltando_retorna_422(client):
     }
     response = client.post("/ml/predict", json=payload_invalido)
     assert response.status_code == 422
+
+
+def test_predict_probabilidade_robusta(client, payload_fraude):
+    """Garante que a probabilidade é válida sem engessar o valor exato."""
+    response = client.post("/ml/predict", json=payload_fraude)
+    dados = response.json()
+    prob = dados["probability"]
+
+    # ROBUSTO ✅
+    # 1. Garante que a probabilidade é um número (float)
+    assert isinstance(prob, float)
+
+    # 2. Garante que está dentro da regra matemática (entre 0% e 100%)
+    assert 0.0 <= prob <= 1.0
