@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_rota_health_retorna_200(client):
     """Garante que a rota de saúde está de pé e respondendo sucesso."""
     response = client.get("/ml/health")
@@ -43,3 +46,29 @@ def test_predict_probabilidade_robusta(client, payload_fraude):
 
     # 2. Garante que está dentro da regra matemática (entre 0% e 100%)
     assert 0.0 <= prob <= 1.0
+
+
+@pytest.mark.parametrize(
+    "campo, valor_invalido",
+    [
+        ("valor_transacao", -50.0),  # Valor não pode ser negativo
+        ("hora_transacao", 25),  # O dia só tem 24 horas (0 a 23)
+        ("tentativas_senha", -1),  # Não existe tentativa negativa
+    ],
+)
+def test_predict_com_campos_invalidos_retorna_422(
+    client, payload_fraude, campo, valor_invalido
+):
+    """Testa múltiplos campos e valores proibidos usando a mesma função."""
+
+    # Fazemos uma cópia do payload válido que veio da fixture
+    payload_hackeado = payload_fraude.copy()
+
+    # Injetamos o valor malicioso no campo da vez
+    payload_hackeado[campo] = valor_invalido
+
+    # Dispara contra a API
+    response = client.post("/ml/predict", json=payload_hackeado)
+
+    # Garante que o Pydantic bloqueou a requisição na porta
+    assert response.status_code == 422
