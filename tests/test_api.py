@@ -1,7 +1,3 @@
-from fastapi.testclient import TestClient
-from main import app
-
-
 def test_rota_health_retorna_200(client):
     """Garante que a rota de saúde está de pé e respondendo sucesso."""
     response = client.get("/ml/health")
