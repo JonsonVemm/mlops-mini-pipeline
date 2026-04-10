@@ -35,8 +35,6 @@ jobs:
   testes-completos:
     runs-on: ubuntu-latest
     needs: testes-smoke
-    # O Pulo do Gato: Este job gigante só roda em pushes diretos para a main.
-    # Em Pull Requests ele será ignorado!
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -46,5 +44,14 @@ jobs:
       - run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          
+      - name: Verificar autenticação com Hugging Face
+        run: python -c "import os; assert os.environ.get('HF_TOKEN'), 'HF_TOKEN não configurado'"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
       - name: Rodar TODOS os testes
         run: python -m pytest tests/ -v --tb=short
+        # Se os testes futuros precisarem do token, a gente passa ele aqui também!
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
