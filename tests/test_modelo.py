@@ -48,3 +48,55 @@ def test_predict_proba_retorna_probabilidades_validas(modelo, amostra_valida):
     probas = modelo.predict_proba(amostra_valida)
     assert probas.shape == (1, 2)  # Duas classes (Normal e Fraude)
     assert abs(probas[0].sum() - 1.0) < 1e-6  # Soma deve ser igual a 1
+
+
+@pytest.mark.integracao
+def test_modelo_distingue_casos_extremos(client):
+    """
+    Teste de sanidade: garante que uma fraude óbvia tem uma
+    probabilidade maior que uma compra normal no dia a dia.
+    """
+    # Caso 1: A vovó comprando pão na padaria da esquina às 2 da tarde
+    caso_tipico = {
+        "valor_transacao": 15.50,
+        "hora_transacao": 14,
+        "distancia_ultima_compra": 2.5,
+        "tentativas_senha": 1,
+        "pais_diferente": 0,
+    }
+
+    # Caso 2: Um hacker na Rússia tentando comprar uma TV de 15 mil reais às 3 da manhã
+    caso_suspeito = {
+        "valor_transacao": 15000.00,
+        "hora_transacao": 3,
+        "distancia_ultima_compra": 8000.0,
+        "tentativas_senha": 4,
+        "pais_diferente": 1,
+    }
+
+    # Mandamos os dois casos para a API processar
+    resp_tipico = client.post("/ml/predict", json=caso_tipico)
+    resp_suspeito = client.post("/ml/predict", json=caso_suspeito)
+
+    assert resp_tipico.status_code == 200
+    assert resp_suspeito.status_code == 200
+
+    prob_tipico = resp_tipico.json()["probability"]
+    prob_suspeito = resp_suspeito.json()["probability"]
+
+    # A grande validação de negócio: a probabilidade do hacker tem que ser maior que a da vovó!
+    assert (
+        prob_suspeito > prob_tipico
+    ), f"Alerta: O modelo achou a Vovó mais suspeita ({prob_tipico}) que o Hacker ({prob_suspeito})!"
+
+
+@pytest.mark.integracao
+def test_modelo_e_deterministico(client, payload_fraude):
+    """O mesmo input deve sempre gerar exatamente a mesma probabilidade."""
+    # Como a fixture payload_fraude tá no conftest.py, o pytest puxa ela automático!
+    resp_1 = client.post("/ml/predict", json=payload_fraude)
+    resp_2 = client.post("/ml/predict", json=payload_fraude)
+
+    # Modelos tradicionais de ML não devem mudar a resposta "do nada" para os mesmos dados
+    assert resp_1.json()["prediction"] == resp_2.json()["prediction"]
+    assert resp_1.json()["probability"] == resp_2.json()["probability"]
