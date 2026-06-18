@@ -11,7 +11,7 @@ def load_model(repo_id: str, filename: str = "model.pkl", force_download: bool =
         repo_id=repo_id,
         filename=filename,
         force_download=force_download,
-        cache_dir="/app/model_cache",  # <-- A MÁGICA ACONTECE AQUI
+        cache_dir="model_cache",  # <-- A MÁGICA ACONTECE AQUI
     )
 
     model = joblib.load(local_path)
